@@ -216,15 +216,20 @@ module clp
 	reg r2p;
 	always @(posedge clock, negedge power) if(!power) r2p <= 1'd0; else if(pe3M5) r2p <= r2;
 
-	reg dioEnp;
-	reg romLoaded = 0;
-	always @(posedge clock) begin dioEnp <= dioEn; if(dioEn && !dioEnp) romLoaded <= 1'b0; if(!dioEn && dioEnp) romLoaded <= 1'b1; end
+	// reg dioEnp;
+	// reg romLoaded = 0;
+	// always @(posedge clock) begin dioEnp <= dioEn; if(dioEn && !dioEnp) romLoaded <= 1'b0; if(!dioEn && dioEnp) romLoaded <= 1'b1; end
 
-	reg [16:0] clrA;
-	wire       clrE = !clrA[16];
-	wire       clrW = clrA[0];
+	// reg [16:0] clrA;
+	// wire       clrE = !clrA[16];
+	// wire       clrW = clrA[0];
 
-	always @(posedge clock, posedge dioEn) if(dioEn) clrA <= 1'd0; else if(pe3M5) if(clrE) clrA <= clrA+1'd1;
+	// always @(posedge clock, posedge romLoaded) if(romLoaded) clrA <= 1'd0; else if(pe3M5) if(clrE) clrA <= clrA+1'd1;
+
+	wire clrE = 0;
+	wire clrW = 0;
+	wire[16:0] clrA = 0;
+	wire romLoaded = 1'b1;
 
 	wire[21:0] sdrA = { 3'd0, dioEn ? dioA[18:0] : clrE ? { 2'd1, 2'd0, clrA[15:1] } : a2 };
 	wire[15:0] sdrD = { 8'hFF, dioEn ? dioD : clrE ? 8'hFF : d2 };
