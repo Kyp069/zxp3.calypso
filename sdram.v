@@ -1,4 +1,7 @@
 //-------------------------------------------------------------------------------------------------
+// This file is part of the ZX Spectrum +3 project for Calypso board
+// https://github.com/kyp069/zxp3.calypso
+//-------------------------------------------------------------------------------------------------
 module sdram
 //-------------------------------------------------------------------------------------------------
 (
@@ -54,7 +57,7 @@ always @(posedge clock) begin
 	if(!ready) begin
 		counting <= 1'b1;
 		case(count)
-			12000: PRECHARGE(2'b00, 1'b1);       // PRECHARGE: all, tRP's minimum value is 20ns
+			12000: PRECHARGE(2'b00, 1'b1);
 			12008: LMR(14'b0000_1_00_010_0_000); // LDM: CL = 2, BT = seq, BL = 1, 20ns
 			12016: REFRESH;
 			12024: REFRESH;
@@ -69,36 +72,32 @@ always @(posedge clock) begin
 	end
 	else begin
 		case(state)
-		sIDLE: begin
-			counting <= 1'b0;
-			if(rdp) state <= sREAD; else
-			if(wrp) state <= sWRITE; else
-			if(rfshp) state <= sREFRESH;
-		end
-		sREAD: begin
-			counting <= 1'b1;
-			case(count)
-				0: ACTIVE(a[21:20], a[19:8]);
-				3: READ(2'b00, a[21:20], a[7:0], 1'b1);
-				6: q <= dramDQ;
-				7: state <= sIDLE;
-			endcase
-		end
-		sWRITE: begin
-			counting <= 1'b1;
-			case(count)
-				0: ACTIVE(a[21:20], a[19:8]);
-				3: WRITE(2'b00, a[21:20], a[7:0], d, 1'b1);
-				7: state <= sIDLE;
-			endcase
-		end
-		sREFRESH: begin
-			counting <= 1'b1;
-			case(count)
-				1: REFRESH;
-				7: state <= sIDLE;
-			endcase
-		end
+			sIDLE: begin
+				counting <= 1'b0;
+				if(rdp) begin ACTIVE(a[21:20], a[19:8]); state <= sREAD; end else
+				if(wrp) begin ACTIVE(a[21:20], a[19:8]); state <= sWRITE; end else
+				if(rfshp) begin REFRESH; state <= sREFRESH; end
+			end
+			sREAD: begin
+				counting <= 1'b1;
+				case(count)
+					0: READ(a[21:20], a[7:0], 2'b00, 1'b1);
+					2: begin q <= dramDQ; state <= sIDLE; end
+				endcase
+			end
+			sWRITE: begin
+				counting <= 1'b1;
+				case(count)
+					0: WRITE(a[21:20], a[7:0], d, 2'b00, 1'b1);
+					2: state <= sIDLE;
+				endcase
+			end
+			sREFRESH: begin
+				counting <= 1'b1;
+				case(count)
+					2: state <= sIDLE;
+				endcase
+			end
 		endcase
 	end
 end

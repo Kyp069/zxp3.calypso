@@ -1,5 +1,8 @@
 `default_nettype none
 //-------------------------------------------------------------------------------------------------
+// This file is part of the ZX Spectrum +3 project for Calypso board
+// https://github.com/kyp069/zxp3.calypso
+//-------------------------------------------------------------------------------------------------
 module clp
 //-------------------------------------------------------------------------------------------------
 (
@@ -84,8 +87,8 @@ module clp
 	wire[14:0] left;
 	wire[14:0] right;
 
-	wire[15:0] lmix = { 1'b0, lmidi[15:1] }^16'h4000+{ 1'd0,  left }+{ 4'd0, {12{ !status[5] && ear}} };
-	wire[15:0] rmix = { 1'b0, rmidi[15:1] }^16'h4000+{ 1'd0, right }+{ 4'd0, {12{ !status[5] && ear}} };
+	wire[15:0] lmix = { 1'b0, lmidi[15:1] }^16'h4000+{ 1'd0,  left }+{ 4'd0, {12{ status[3] && ear}} };
+	wire[15:0] rmix = { 1'b0, rmidi[15:1] }^16'h4000+{ 1'd0, right }+{ 4'd0, {12{ status[3] && ear}} };
 
 	i2s i2s(clock, lmix, rmix, i2sCk, i2sWs, i2sD);
 
@@ -110,6 +113,11 @@ module clp
 	wire[ 7:0] dioD;
 	wire       dioW;
 
+	wire sdcCs;
+	wire sdcCk;
+	wire sdcMosi;
+	wire sdcMiso;
+
 	wire       fddCe;
 	wire       fddRd;
 	wire       fddWr;
@@ -118,10 +126,8 @@ module clp
 	wire[ 7:0] fddQ;
 	wire       fddMtr;
 
-	wire sdcCs;
-	wire sdcCk;
-	wire sdcMosi;
-	wire sdcMiso;
+	wire       tapeBusy;
+	wire       tapeEar;
 
 	mist #(.RGBW(4)) mist
 	(
@@ -157,6 +163,10 @@ module clp
 		.dioA   (dioA   ),
 		.dioD   (dioD   ),
 		.dioW   (dioW   ),
+		.sdcCs  (sdcCs  ),
+		.sdcCk  (sdcCk  ),
+		.sdcMosi(sdcMosi),
+		.sdcMiso(sdcMiso),
 		.fddCe  (fddCe  ),
 		.fddRd  (fddRd  ),
 		.fddWr  (fddWr  ),
@@ -164,17 +174,11 @@ module clp
 		.fddD   (fddD   ),
 		.fddQ   (fddQ   ),
 		.fddMtr (fddMtr ),
-		.sdcCs  (sdcCs  ),
-		.sdcCk  (sdcCk  ),
-		.sdcMosi(sdcMosi),
-		.sdcMiso(sdcMiso)
+		.tapePlay(~play ),
+		.tapeStop(~stop ),
+		.tapeBusy(tapeBusy),
+		.tapeEar (tapeEar)
 	);
-
-	reg dioEnp = 0;
-	always @(posedge clock) dioEnp <= dioEn;
-
-	reg romLoaded = 0;
-	always @(posedge clock) if(dioEn && !dioEnp) romLoaded <= 1'b0; else if(!dioEn && dioEnp) romLoaded <= 1'b1;
 
 //--- keyboard ------------------------------------------------------------------------------------
 
@@ -196,7 +200,6 @@ module clp
 
 	wire ready;
 	wire rfsh;
-	wire romIo = dioEn && dioIx[5:0] == 0;
 
 	wire[13:0] a1;
 	wire[ 7:0] q1;
@@ -213,17 +216,21 @@ module clp
 	reg r2p;
 	always @(posedge clock, negedge power) if(!power) r2p <= 1'd0; else if(pe3M5) r2p <= r2;
 
+	reg dioEnp;
+	reg romLoaded = 0;
+	always @(posedge clock) begin dioEnp <= dioEn; if(dioEn && !dioEnp) romLoaded <= 1'b0; if(!dioEn && dioEnp) romLoaded <= 1'b1; end
+
 	reg [16:0] clrA;
 	wire       clrE = !clrA[16];
 	wire       clrW = clrA[0];
 
-	always @(posedge clock, posedge romIo) if(romIo) clrA <= 1'd0; else if(pe3M5) if(clrE) clrA <= clrA+1'd1;
+	always @(posedge clock, posedge dioEn) if(dioEn) clrA <= 1'd0; else if(pe3M5) if(clrE) clrA <= clrA+1'd1;
 
-	wire[21:0] sdrA = { 3'd0, romIo ? dioA[18:0] : clrE ? { 2'd1, 2'd0, clrA[15:1] } : a2 };
-	wire[15:0] sdrD = { 8'hFF, romIo ? dioD : clrE ? 8'hFF : d2 };
+	wire[21:0] sdrA = { 3'd0, dioEn ? dioA[18:0] : clrE ? { 2'd1, 2'd0, clrA[15:1] } : a2 };
+	wire[15:0] sdrD = { 8'hFF, dioEn ? dioD : clrE ? 8'hFF : d2 };
 	wire[15:0] sdrQ;
 	wire       sdrR = r2p;
-	wire       sdrW = romIo ? dioW : clrE ? clrW : w2;
+	wire       sdrW = dioEn ? dioW : clrE ? clrW : w2;
 
 	sdram sdram
 	(
@@ -250,13 +257,13 @@ module clp
 
 //--- zxp3 ----------------------------------------------------------------------------------------
 
-	wire divmmc = !status[5];
-	wire timing = !status[8];
+	wire divmmc = !status[2];
+	wire timing = status[5];
 
-	wire reset = power && ready && F9 && !romIo && !clrE && !status[0] && romLoaded;
+	wire reset = power && ready && F9 && !status[0] && !dioEn && romLoaded && !clrE;
 	wire nmi = F5 && !status[1];
 
-	wire ear = ~tape;
+	wire ear = tapeBusy ? tapeEar : ~tape;
 
 	zxp3 zxp3
 	(
@@ -310,7 +317,7 @@ module clp
 
 //-------------------------------------------------------------------------------------------------
 
-	assign led = { ear, {6{ !reset }}, !sdcCs };
+	assign led = { ear, tapeBusy, {5{ !reset }}, !sdcCs };
 
 //-------------------------------------------------------------------------------------------------
 endmodule

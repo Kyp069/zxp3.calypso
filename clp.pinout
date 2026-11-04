@@ -89,6 +89,6 @@ set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to led*
 set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to sync*
 set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to rgb*
 set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to i2s*
-# set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to midi
+set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to midi
 set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to dram*
 set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to spi*
