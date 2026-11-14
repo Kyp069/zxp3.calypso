@@ -125,7 +125,7 @@ begin
 	dramDQM <= 2'b11;
 	dramDQ  <= 16'bZ;
 	dramBA  <= ba;
-	dramA   <= { 1'b0, pch, 9'd0 };
+	dramA   <= { 1'b0, pch, 10'd0 };
 end
 endtask
 
